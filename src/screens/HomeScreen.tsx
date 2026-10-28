@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { DataItem, DRAFT_KEY, storage } from '../Storage';
 import { useMMKVString } from 'react-native-mmkv';
 import { useMemo } from 'react';
+import { HabitMonthCalendar } from '../components/HabitMonthCalendar';
 
 // Вспомогательная функция для получения сегодняшней даты в формате YYYY-MM-DD
 const getTodayString = () => {
@@ -64,13 +65,14 @@ export default function HomeScreen() {
           return (
             <View style={styles.card}>
               {/* Левая часть: цвет, эмодзи, название */}
-              <View style={styles.cardInfo}>
-                <View style={[styles.colorDot, { backgroundColor: item.color || '#ccc' }]} />
-                <Text style={styles.cardEmoji}>{item.emoji || '📝'}</Text>
-                <Text style={[styles.cardTitle, isCompletedToday && styles.completedTitle]}>
-                  {item.title}
-                </Text>
-              </View>
+              <View style={styles.cardTopRow}>
+                <View style={styles.cardInfo}>
+                  <View style={[styles.colorDot, { backgroundColor: item.color || '#ccc' }]} />
+                  <Text style={styles.cardEmoji}>{item.emoji || '📝'}</Text>
+                  <Text style={[styles.cardTitle, isCompletedToday && styles.completedTitle]}>
+                    {item.title}
+                  </Text>
+                </View>
 
               {/* Правая часть: кнопка-чекбокс */}
               <Pressable 
@@ -85,6 +87,11 @@ export default function HomeScreen() {
                 </Text>
               </Pressable>
             </View>
+              <HabitMonthCalendar 
+              completedDates={item.completedDates || []} 
+              color={item.color} 
+            />
+            </View>
           );
         }}
         ListEmptyComponent={<Text style={styles.empty}>Записей пока нет</Text>}
@@ -98,9 +105,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9f9f9' },
   listContainer: { padding: 16 },
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between', // Раздвигаем инфо и кнопку
     backgroundColor: '#fff',
     padding: 16,
     borderRadius: 12,
@@ -111,19 +115,17 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
+  cardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   cardInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1, // Занимает все доступное место
+    flex: 1,
   },
-  colorDot: { width: 12, height: 12, borderRadius: 6, marginRight: 12 },
-  cardEmoji: { fontSize: 24, marginRight: 12 },
-  cardTitle: { fontSize: 16, fontWeight: '500', flexShrink: 1 },
-  completedTitle: {
-    textDecorationLine: 'line-through',
-    color: '#999',
-  },
-  // Стили для кнопки выполнения
+  // ... (остальные стили цвета, эмодзи и кнопки)
   checkButton: {
     width: 36,
     height: 36,
@@ -134,6 +136,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginLeft: 10,
   },
+  colorDot: { width: 12, height: 12, borderRadius: 6, marginRight: 12 },
+  cardEmoji: { fontSize: 24, marginRight: 12 },
+  cardTitle: { fontSize: 16, fontWeight: '500', flexShrink: 1 },
+  completedTitle: {
+    textDecorationLine: 'line-through',
+    color: '#999',
+  },
+  // Стили для кнопки выполнения
   checkButtonActive: {
     backgroundColor: '#34C759',
     borderColor: '#34C759',
