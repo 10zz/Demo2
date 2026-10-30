@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { StyleSheet, View, ScrollView, Text, FlatList, Pressable } from 'react-native';
+import { StyleSheet, View, ScrollView, Text, FlatList, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DataItem, DRAFT_KEY, storage } from '../Storage';
 import { useMMKVString } from 'react-native-mmkv';
@@ -51,6 +51,24 @@ export default function HomeScreen() {
     setRecordsString(JSON.stringify(updatedRecords));
   };
 
+    const handleDelete = (id: string) => {
+    Alert.alert(
+      'Удалить привычку?',
+      'Это действие нельзя отменить.',
+      [
+        { text: 'Отмена', style: 'cancel' },
+        { 
+          text: 'Удалить', 
+          style: 'destructive',
+          onPress: () => {
+            const updated = records.filter(r => r.id !== id);
+            setRecordsString(JSON.stringify(updated));
+          }
+        }
+      ]
+    );
+  };
+
   const today = getTodayString();
 
   return (
@@ -74,23 +92,25 @@ export default function HomeScreen() {
                   </Text>
                 </View>
 
-              {/* Правая часть: кнопка-чекбокс */}
-              <Pressable 
-                onPress={() => toggleToday(item.id)}
-                style={[
-                  styles.checkButton,
-                  isCompletedToday && styles.checkButtonActive
-                ]}
-              >
-                <Text style={styles.checkButtonText}>
-                  {isCompletedToday ? '✓' : ''}
-                </Text>
-              </Pressable>
-            </View>
-              <HabitMonthCalendar 
-              completedDates={item.completedDates || []} 
-              color={item.color} 
-            />
+                {/* Блок с кнопками действий */}
+                <View style={styles.actionButtons}>
+                  <Pressable onPress={() => handleDelete(item.id)} style={styles.iconButton}>
+                    <Text style={styles.iconText}>🗑️</Text>
+                  </Pressable>
+                  <Pressable 
+                    onPress={() => toggleToday(item.id)}
+                    style={[
+                      styles.checkButton,
+                      isCompletedToday && { backgroundColor: item.color || '#34C759', borderColor: item.color || '#34C759' }
+                    ]}
+                  >
+                    <Text style={styles.checkButtonText}>{isCompletedToday ? '✓' : ''}</Text>
+                  </Pressable>
+                </View>
+              </View>
+
+              {/* Календарь */}
+              <HabitMonthCalendar completedDates={item.completedDates || []} color={item.color} />
             </View>
           );
         }}
@@ -154,4 +174,15 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   empty: { textAlign: 'center', color: '#999', marginTop: 50 },
+    actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8, // Расстояние между кнопками
+  },
+  iconButton: {
+    padding: 4,
+  },
+  iconText: {
+    fontSize: 18,
+  },
 });
