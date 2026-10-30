@@ -3,7 +3,7 @@ import { StyleSheet, View, ScrollView, Text, FlatList, Pressable, Alert } from '
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DataItem, DRAFT_KEY, storage } from '../Storage';
 import { useMMKVString } from 'react-native-mmkv';
-import { useMemo } from 'react';
+import { useLayoutEffect, useMemo, useState } from 'react';
 import { HabitMonthCalendar } from '../components/HabitMonthCalendar';
 
 // Вспомогательная функция для получения сегодняшней даты в формате YYYY-MM-DD
@@ -15,14 +15,14 @@ const getTodayString = () => {
   return `${year}-${month}-${day}`;
 };
 
+type FilterType = 'all' | 'completed' | 'uncompleted';
+
 export default function HomeScreen() {
   const navigation = useNavigation();
 
   const [recordsString, setRecordsString] = useMMKVString(DRAFT_KEY, storage);
 
-  const records: DataItem[] = useMemo(() => {
-    return recordsString ? JSON.parse(recordsString) : [];
-  }, [recordsString]);
+
 
     const toggleToday = (id: string) => {
     const today = getTodayString();
@@ -71,16 +71,55 @@ export default function HomeScreen() {
 
   const today = getTodayString();
 
+  const [filter, setFilter] = useState<FilterType>('all'); // Состояние фильтра
+    // 1. Устанавливаем кнопку в Header
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <Pressable 
+          onPress={() => {
+            // Переключаем фильтр по кругу
+            setFilter(prev => {
+              if (prev === 'all') return 'completed';
+              if (prev === 'completed') return 'uncompleted';
+              return 'all';
+            });
+          }}
+          style={{ marginRight: 16, padding: 4 }}
+        >
+          <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#007AFF' }}>
+            {filter === 'all' ? '📋 Все' : filter === 'completed' ? '✅ Вып.' : '⭕ Невып.'}
+          </Text>
+        </Pressable>
+      ),
+    });
+  }, [navigation, filter]);
+
+  const records: DataItem[] = useMemo(() => {
+    return recordsString ? JSON.parse(recordsString) : [];
+  }, [recordsString]);
+
+  // 2. Фильтруем записи перед отображением
+  const filteredRecords = useMemo(() => {
+    return records.filter(record => {
+      const isCompletedToday = record.completedDates?.includes(today);
+      if (filter === 'completed') return isCompletedToday;
+      if (filter === 'uncompleted') return !isCompletedToday;
+      return true; // 'all'
+    });
+  }, [records, filter, today]);
+
   return (
     <View style={styles.container}>
       <FlatList
-        data={records}
+        data={filteredRecords}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => {
           // Проверяем, выполнена ли привычка сегодня
           const isCompletedToday = item.completedDates?.includes(today);
 
           return (
+            
             <View style={styles.card}>
               {/* Левая часть: цвет, эмодзи, название */}
               <View style={styles.cardTopRow}>
