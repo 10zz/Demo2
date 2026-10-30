@@ -1,10 +1,9 @@
 import { useNavigation } from '@react-navigation/native';
 import { StyleSheet, View, ScrollView, Text, FlatList, Pressable, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { DataItem, DRAFT_KEY, storage } from '../Storage';
 import { useMMKVString } from 'react-native-mmkv';
 import { useLayoutEffect, useMemo, useState } from 'react';
-import { HabitMonthCalendar } from '../components/HabitMonthCalendar';
+import { HabitCard } from '../components/HabitCard';
 
 // Вспомогательная функция для получения сегодняшней даты в формате YYYY-MM-DD
 const getTodayString = () => {
@@ -69,6 +68,10 @@ export default function HomeScreen() {
     );
   };
 
+  const handleEdit = (id: string) => {
+
+  };
+
   const today = getTodayString();
 
   const [filter, setFilter] = useState<FilterType>('all'); // Состояние фильтра
@@ -119,38 +122,14 @@ export default function HomeScreen() {
           const isCompletedToday = item.completedDates?.includes(today);
 
           return (
+                        <HabitCard 
+              item={item}
+              isCompletedToday={isCompletedToday}
+              onToggleToday={toggleToday}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
             
-            <View style={styles.card}>
-              {/* Левая часть: цвет, эмодзи, название */}
-              <View style={styles.cardTopRow}>
-                <View style={styles.cardInfo}>
-                  <View style={[styles.colorDot, { backgroundColor: item.color || '#ccc' }]} />
-                  <Text style={styles.cardEmoji}>{item.emoji || '📝'}</Text>
-                  <Text style={[styles.cardTitle, isCompletedToday && styles.completedTitle]}>
-                    {item.title}
-                  </Text>
-                </View>
-
-                {/* Блок с кнопками действий */}
-                <View style={styles.actionButtons}>
-                  <Pressable onPress={() => handleDelete(item.id)} style={styles.iconButton}>
-                    <Text style={styles.iconText}>🗑️</Text>
-                  </Pressable>
-                  <Pressable 
-                    onPress={() => toggleToday(item.id)}
-                    style={[
-                      styles.checkButton,
-                      isCompletedToday && { backgroundColor: item.color || '#34C759', borderColor: item.color || '#34C759' }
-                    ]}
-                  >
-                    <Text style={styles.checkButtonText}>{isCompletedToday ? '✓' : ''}</Text>
-                  </Pressable>
-                </View>
-              </View>
-
-              {/* Календарь */}
-              <HabitMonthCalendar completedDates={item.completedDates || []} color={item.color} />
-            </View>
           );
         }}
         ListEmptyComponent={<Text style={styles.empty}>Записей пока нет</Text>}
