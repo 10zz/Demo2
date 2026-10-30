@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { StyleSheet, View, ScrollView, Text, FlatList, Pressable, Alert } from 'react-native';
+import { StyleSheet, View, Text, FlatList, Pressable, Alert } from 'react-native';
 import { DataItem, DRAFT_KEY, storage } from '../Storage';
 import { useMMKVString } from 'react-native-mmkv';
 import { useLayoutEffect, useMemo, useState } from 'react';
@@ -14,53 +14,62 @@ const getTodayString = () => {
   return `${year}-${month}-${day}`;
 };
 
-type FilterType = 'all' | 'completed' | 'uncompleted';
-
 export default function HomeScreen() {
+  // Хук для методов навигации между экранами.
   const navigation = useNavigation();
+  // Сегодняшняя дата.
+  const today = getTodayString();
 
   const [recordsString, setRecordsString] = useMMKVString(DRAFT_KEY, storage);
+  // Обновляем хранилище данных пользователя при каждом вызове setRecordsString.
+  const records: DataItem[] = useMemo(() => {
+    return recordsString ? JSON.parse(recordsString) : [];
+  }, [recordsString]);
 
-
-
-    const toggleToday = (id: string) => {
-    const today = getTodayString();
-    
+  // Обработчики кнопок ---------------------------------------------------------------------------
+  // Обработчик кнопки переключения выполнения привычки.
+  const handleToggle = (id: string) => {
     const updatedRecords = records.map(record => {
+      // Ищем запись по ID в хранилище данных пользователя.
       if (record.id === id) {
-        // Проверяем, есть ли уже сегодняшняя дата в списке выполненных
+        // Проверяем, есть ли уже сегодняшняя дата в списке выполненных.
         const isCompletedToday = record.completedDates?.includes(today);
         
         let newCompletedDates;
+        // Если есть — убираем (снимаем отметку).
+        // Генерируем новый массив дней с отметками без сегодняшней даты.
         if (isCompletedToday) {
-          // Если есть — убираем (снимаем отметку)
           newCompletedDates = record.completedDates.filter(date => date !== today);
+        // Если нет — добавляем (отмечаем выполненным).
+        // Генерируем новый или Добавляем в старый массив дней с отметками сегодняшнюю дату.
         } else {
-          // Если нет — добавляем (отмечаем выполненным)
-          // Если массив undefined (старые записи), создаем новый
           newCompletedDates = [...(record.completedDates || []), today];
         }
-
+        // После этого, возвращаем единичный элемент данных пользователя с обновлённым свойством 
+        // completedDates (из которого исключена или в которое включена сегодняшняя дата).
         return { ...record, completedDates: newCompletedDates };
       }
+      // Запись не найдена -> вернять исходную запись хранилища.
       return record;
     });
 
-    // Сохраняем обновленный список обратно в MMKV
+    // Сохраняем обновленный список обратно в MMKV.
     setRecordsString(JSON.stringify(updatedRecords));
   };
 
-    const handleDelete = (id: string) => {
+  // Обработчик кнопки "Удалить".
+  const handleDelete = (id: string) => {
     Alert.alert(
       'Удалить привычку?',
       'Это действие нельзя отменить.',
       [
         { text: 'Отмена', style: 'cancel' },
         { 
-          text: 'Удалить', 
-          style: 'destructive',
+          text: 'Удалить', style: 'destructive',
           onPress: () => {
-            const updated = records.filter(r => r.id !== id);
+            // Генерируем новое хранилище на основе старого, где ID записей не равны удаляемой.
+            const updated = records.filter(r => r.id !== id); 
+            // Сохраняем обновленное хранилище обратно в MMKV.
             setRecordsString(JSON.stringify(updated));
           }
         }
@@ -68,139 +77,105 @@ export default function HomeScreen() {
     );
   };
 
-  const handleEdit = (id: string) => {
+  // TODO: Обработчик кнопки "Редактировать".
+  const handleEdit = (id: string) => {};
 
-  };
+  // Кнопка фильтрации.
+  type FilterType = 'all' | 'completed' | 'uncompleted'; // Список возможных положений фильтра.
+  const [filterPosition, setFilterPosition] = useState<FilterType>('all'); // Положение фильтра.
 
-  const today = getTodayString();
-
-  const [filter, setFilter] = useState<FilterType>('all'); // Состояние фильтра
-    // 1. Устанавливаем кнопку в Header
+  // Добавляем кнопку в Header справа хуком useLayoutEffect 
+  // (позволяет вставить кнопку в Navigation до отрисовки экрана).
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
         <Pressable 
           onPress={() => {
             // Переключаем фильтр по кругу
-            setFilter(prev => {
+            setFilterPosition(prev => {
               if (prev === 'all') return 'completed';
               if (prev === 'completed') return 'uncompleted';
               return 'all';
             });
           }}
-          style={{ marginRight: 16, padding: 4 }}
+          style = {styles.filterButton}
         >
-          <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#007AFF' }}>
-            {filter === 'all' ? '📋 Все' : filter === 'completed' ? '✅ Вып.' : '⭕ Невып.'}
+          <Text style = {styles.filterButtonText}>
+            {filterPosition === 'all' ? '📋 Все' : filterPosition === 'completed' ? '✅ Вып.' : '⭕ Невып.'}
           </Text>
         </Pressable>
       ),
     });
-  }, [navigation, filter]);
+  // Зависимость filterPosition и navigation нужна, чтобы кнопка обновляла свой текст при каждом клике.
+  }, [navigation, filterPosition]);
 
-  const records: DataItem[] = useMemo(() => {
-    return recordsString ? JSON.parse(recordsString) : [];
-  }, [recordsString]);
-
-  // 2. Фильтруем записи перед отображением
+  // Фильтрует каждый элемент хранилища по списку выполненых дат и возвращает отфильтрованное 
+  // хранилище в filteredRecords.
   const filteredRecords = useMemo(() => {
     return records.filter(record => {
       const isCompletedToday = record.completedDates?.includes(today);
-      if (filter === 'completed') return isCompletedToday;
-      if (filter === 'uncompleted') return !isCompletedToday;
-      return true; // 'all'
+      if (filterPosition === 'completed') return isCompletedToday;
+      if (filterPosition === 'uncompleted') return !isCompletedToday;
+      return true;        // 'all'
     });
-  }, [records, filter, today]);
+  // Триггеры:
+  // 1. Изменение хранилища (удаление/добавление привычки);
+  // 2. Изменение положения фильтра;
+  // 3. Изменение сегодняшней даты (перезапуск приложения?).
+  }, [records, filterPosition, today]);
 
+  // Основная разметка ----------------------------------------------------------------------------
   return (
-    <View style={styles.container}>
+    <View style = {styles.mainContainer}>
+      {/* Тот же самый ScrollView, но рендерит только элементы, которые видны на экарне*/}
       <FlatList
-        data={filteredRecords}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => {
-          // Проверяем, выполнена ли привычка сегодня
+        data =         {filteredRecords}  // Откуда брать данные для рендера.
+        keyExtractor = {item => item.id}  // Из какого поля извлекать каждый уникальный ключ для каждого элемента массива item.
+        renderItem =   {({ item }) => {   // Функция, определяющая, как отображать каждый элемент массива item.
           const isCompletedToday = item.completedDates?.includes(today);
-
           return (
-                        <HabitCard 
-              item={item}
-              isCompletedToday={isCompletedToday}
-              onToggleToday={toggleToday}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
+            <HabitCard 
+              item =              {item}
+              isCompletedToday =  {isCompletedToday}
+              onToggleToday =     {handleToggle}
+              onEdit =            {handleEdit}
+              onDelete =          {handleDelete}
             />
-            
           );
         }}
-        ListEmptyComponent={<Text style={styles.empty}>Записей пока нет</Text>}
-        contentContainerStyle={styles.listContainer}
+        ListEmptyComponent = {            // Что рендерить при пустом item.
+          <Text style = {styles.listContainerEmptyText}>Записей пока нет</Text>
+        } 
+        contentContainerStyle = {styles.listContainer}
       />
     </View>
   );
 }
 
+// Стили ------------------------------------------------------------------------------------------
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9f9f9' },
-  listContainer: { padding: 16 },
-  card: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+  // Самый верхний контейнер.
+  mainContainer: { 
+    flex: 1, 
+    //backgroundColor: '#f9f9f9' 
   },
-  cardTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  // Прокручиваемый контейнер.
+  listContainer: { 
+    padding: 16 
   },
-  cardInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
+  // Текст при отсутствии отображаемых элементов.
+  listContainerEmptyText: { 
+    textAlign: 'center', 
+    color: '#999', 
   },
-  // ... (остальные стили цвета, эмодзи и кнопки)
-  checkButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 2,
-    borderColor: '#ccc',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 10,
+  // Кнопка фильтра.
+  filterButton: {
+    marginRight: 16, 
+    padding: 4
   },
-  colorDot: { width: 12, height: 12, borderRadius: 6, marginRight: 12 },
-  cardEmoji: { fontSize: 24, marginRight: 12 },
-  cardTitle: { fontSize: 16, fontWeight: '500', flexShrink: 1 },
-  completedTitle: {
-    textDecorationLine: 'line-through',
-    color: '#999',
-  },
-  // Стили для кнопки выполнения
-  checkButtonActive: {
-    backgroundColor: '#34C759',
-    borderColor: '#34C759',
-  },
-  checkButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 18,
-  },
-  empty: { textAlign: 'center', color: '#999', marginTop: 50 },
-    actionButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8, // Расстояние между кнопками
-  },
-  iconButton: {
-    padding: 4,
-  },
-  iconText: {
-    fontSize: 18,
-  },
+  filterButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold', 
+    color: '#007AFF'
+  }
 });
